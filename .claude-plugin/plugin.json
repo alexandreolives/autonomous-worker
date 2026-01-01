@@ -15,8 +15,22 @@
     "tickets",
     "worktree"
   ],
-  "commands": "./commands/",
-  "agents": "./agents/",
+  "commands": [
+    "./commands/cycle.md",
+    "./commands/triage.md",
+    "./commands/status.md"
+  ],
+  "agents": [
+    "./agents/orchestrator.md",
+    "./agents/implementer.md",
+    "./agents/analyzers/structure.md",
+    "./agents/analyzers/patterns.md",
+    "./agents/analyzers/risks.md",
+    "./agents/reviewers/security.md",
+    "./agents/reviewers/quality.md",
+    "./agents/reviewers/tests.md",
+    "./agents/reviewers/performance.md"
+  ],
   "skills": "./skills/",
   "hooks": "./hooks/hooks.json"
 }
