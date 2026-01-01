@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.autonomous-worker/hooks/check-cycle-complete.sh"
+            "command": "\"$PLUGIN_DIR\"/scripts/check-cycle-complete.sh"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.autonomous-worker/hooks/collect-agent-results.sh"
+            "command": "\"$PLUGIN_DIR\"/scripts/collect-agent-results.sh"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.autonomous-worker/hooks/log-agent-spawn.sh"
+            "command": "\"$PLUGIN_DIR\"/scripts/log-agent-spawn.sh"
           }
         ]
       }
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.autonomous-worker/hooks/track-file-changes.sh"
+            "command": "\"$PLUGIN_DIR\"/scripts/track-file-changes.sh"
           }
         ]
       }
@@ -50,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.autonomous-worker/hooks/load-context.sh"
+            "command": "\"$PLUGIN_DIR\"/scripts/load-context.sh"
           }
         ]
       }
