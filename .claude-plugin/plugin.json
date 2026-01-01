@@ -1,0 +1,22 @@
+{
+  "name": "autonomous-worker",
+  "version": "0.1.0",
+  "description": "Multi-level autonomous agent orchestrator with parallel analysis, iterative implementation cycles, and intelligent ticket management. Inspired by compound-engineering, claude-code-settings, and ralph-wiggum patterns.",
+  "author": {
+    "name": "Alexandre",
+    "email": "alexandre@affretium.com"
+  },
+  "repository": "https://github.com/affretium/autonomous-worker",
+  "keywords": [
+    "orchestrator",
+    "multi-agent",
+    "parallel",
+    "autonomous",
+    "tickets",
+    "worktree"
+  ],
+  "commands": "./commands/",
+  "agents": "./agents/",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
+}

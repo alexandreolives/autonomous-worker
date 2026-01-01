@@ -1,0 +1,21 @@
+# Autonomous Worker Runtime Files
+.autonomous-worker/
+*.local.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node (if using any JS tools)
+node_modules/
+
+# Python (if using any Python tools)
+__pycache__/
+*.pyc
+.venv/
