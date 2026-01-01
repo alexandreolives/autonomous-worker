@@ -1,8 +1,15 @@
 {
-  "plugins": {
-    "autonomous-worker": {
-      "path": "./",
+  "name": "autonomous-worker-plugins",
+  "owner": {
+    "name": "Alexandre Olives",
+    "email": "alexandre@affretium.com"
+  },
+  "plugins": [
+    {
+      "name": "autonomous-worker",
+      "source": "./",
+      "description": "Multi-level autonomous agent orchestrator for Claude Code",
       "version": "0.1.0"
     }
-  }
+  ]
 }
