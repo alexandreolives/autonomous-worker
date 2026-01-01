@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$PLUGIN_DIR\"/scripts/check-cycle-complete.sh"
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/check-cycle-complete.sh"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$PLUGIN_DIR\"/scripts/collect-agent-results.sh"
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/collect-agent-results.sh"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$PLUGIN_DIR\"/scripts/log-agent-spawn.sh"
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/log-agent-spawn.sh"
           }
         ]
       }
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$PLUGIN_DIR\"/scripts/track-file-changes.sh"
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/track-file-changes.sh"
           }
         ]
       }
@@ -50,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$PLUGIN_DIR\"/scripts/load-context.sh"
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/load-context.sh"
           }
         ]
       }
