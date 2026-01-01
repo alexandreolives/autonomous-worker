@@ -1,7 +1,7 @@
 ---
 name: cycle
-description: Execute an iterative development cycle with parallel analysis, implementation, and review phases. Each iteration generates tickets for issues found, which are automatically addressed in subsequent iterations.
-argument-hint: "<task description>" --iterations <N>
+description: Execute an iterative development cycle working on triaged tickets. Analyzes, implements, reviews, loops N times, then commits. Works only on approved tickets from tickets/ folder.
+argument-hint: "[<task description>] --iterations <N>"
 allowed-tools:
   - Task
   - Read
@@ -15,20 +15,31 @@ allowed-tools:
 
 # Autonomous Worker: Development Cycle
 
-You are executing an iterative development cycle for a task. This cycle consists of:
-1. **ANALYZE** - Parallel agents examine the codebase
-2. **IMPLEMENT** - Execute the task or fix tickets from previous iteration
-3. **REVIEW** - Parallel agents review the implementation
+You are executing an iterative development cycle. This cycle:
+1. **ANALYZE** - Parallel agents examine the codebase and task
+2. **IMPLEMENT** - Execute the task or work on triaged tickets
+3. **REVIEW** - Parallel agents validate the implementation
 4. **LOOP** - Repeat for the specified number of iterations
 5. **COMMIT** - Auto-commit when all iterations complete (no push)
 
+## Important: Ticket Generation is Separate
+
+**Ticket generation is NOT part of this cycle.**
+
+- Use `/aw:analyze-improve` to generate improvement tickets
+- Use `/aw:analyze-features` to generate feature tickets
+- Use `/aw:triage` to approve tickets for this cycle
+- This cycle works on **already triaged tickets** from `tickets/`
+
 ## Arguments Parsing
 
-Parse the user's input to extract:
-- `task_description`: The main task to accomplish
-- `iterations`: Number of cycles (default: 3 if not specified)
+Parse the user's input:
+- `task_description`: Direct task OR "work tickets" to process ticket queue
+- `iterations`: Number of cycles (default: 3)
 
-Example: `/aw:cycle "Add OAuth authentication" --iterations 4`
+Examples:
+- `/aw:cycle "Add OAuth authentication" --iterations 4`
+- `/aw:cycle --iterations 3` (works on triaged tickets)
 
 ## Pre-Cycle Setup
 
@@ -37,16 +48,14 @@ Example: `/aw:cycle "Add OAuth authentication" --iterations 4`
    ```bash
    git worktree add ../aw-<task-slug> -b feature/aw-<task-slug> staging
    ```
-3. **Read project context** from CLAUDE.md section `## Autonomous Worker Context` if it exists
-4. **Initialize ticket directory**: `.autonomous-worker/tickets/` with structure:
+3. **Read project context** from CLAUDE.md
+4. **Check ticket queue**:
    ```
-   .autonomous-worker/
-   ├── tickets/
-   │   ├── P0-critical/
-   │   ├── P1-important/
-   │   └── P2-improvement/
-   ├── state.json
-   └── cycle-log.md
+   .autonomous-worker/tickets/
+   ├── P0-critical/    # Process first
+   ├── P1-important/   # Process second
+   ├── P2-improvement/ # Process if time
+   └── resolved/       # Completed
    ```
 
 ## Iteration Loop
@@ -55,50 +64,55 @@ For each iteration (1 to N):
 
 ### Phase 1: ANALYZE (Parallel Agents)
 
-Launch these agents IN PARALLEL using the Task tool with `run_in_background: true`:
+Launch these agents IN PARALLEL using Task tool with `run_in_background: true`:
 
 1. **Structure Analyzer**: Examine architecture, file organization, dependencies
 2. **Pattern Analyzer**: Find existing patterns, conventions, similar implementations
-3. **Risk Analyzer**: Identify edge cases, potential bugs, security concerns
+3. **Risk Analyzer**: Identify edge cases, potential issues with proposed changes
 
-Wait for all agents to complete, then aggregate their findings.
+Wait for all agents to complete, then aggregate findings.
 
 ### Phase 2: IMPLEMENT
 
-Based on:
-- Original task description (iteration 1)
-- OR tickets from previous iteration (iteration 2+)
+**If direct task (iteration 1)**:
+- Implement the described task based on analysis
 
-Execute implementation focusing on:
-- P0 tickets first (blocking issues)
-- P1 tickets second (important)
-- P2 tickets if time permits
+**If working tickets**:
+- Read tickets from `tickets/P0-critical/` first
+- Then `P1-important/`, then `P2-improvement/`
+- Implement fixes for each
 
 Use the `implementer` agent for complex implementations.
 
 ### Phase 3: REVIEW (Parallel Agents)
 
-Launch these agents IN PARALLEL:
+Launch these agents IN PARALLEL to **validate** the implementation:
 
-1. **Security Reviewer**: Check for vulnerabilities (OWASP, injection, auth issues)
-2. **Quality Reviewer**: Code smells, DRY, SOLID, naming conventions
-3. **Test Reviewer**: Test coverage, edge cases, missing tests
-4. **Performance Reviewer**: N+1 queries, bottlenecks, memory leaks
+1. **Security Reviewer**: Check for vulnerabilities
+2. **Quality Reviewer**: Code quality, patterns, conventions
+3. **Test Reviewer**: Test coverage, edge cases
+4. **Performance Reviewer**: N+1 queries, bottlenecks
 
-Each reviewer generates tickets in the appropriate priority folder.
+**Review generates validation feedback, NOT new tickets.**
 
-### Phase 4: Ticket Processing
+If reviewers find issues:
+- Minor issues: Fix immediately in this iteration
+- Major issues: Log in cycle-log.md, handle in next iteration
+- Critical blockers: Pause and report to user
+
+### Phase 4: Iteration Summary
 
 After review phase:
-1. Count tickets by priority
-2. Log to `cycle-log.md`:
+1. Log to `cycle-log.md`:
    ```markdown
    ## Iteration X/N
    - Analyzed: [summary]
-   - Implemented: [changes]
-   - Tickets Generated: P0: X, P1: Y, P2: Z
+   - Implemented: [changes made]
+   - Reviewed: [validation results]
+   - Issues Fixed: [count]
    - Status: [continuing/complete]
    ```
+2. Mark resolved tickets (move to `resolved/`)
 3. If more iterations remain, continue to next iteration
 4. If final iteration, proceed to commit
 
@@ -107,25 +121,22 @@ After review phase:
 When all iterations complete:
 
 1. Stage all changes: `git add -A`
-2. Generate commit message summarizing:
-   - Task accomplished
-   - Key changes made
-   - Tickets resolved
-3. Commit with generated message:
+2. Generate commit message:
    ```bash
    git commit -m "feat: <task summary>
 
+   Changes:
    - <change 1>
    - <change 2>
    - <change 3>
 
-   Resolved tickets: X P0, Y P1, Z P2
+   Tickets resolved: <list>
    Iterations: N
 
    🤖 Generated by autonomous-worker"
    ```
-4. **DO NOT PUSH** - User will push when ready
-5. Report completion with summary
+3. **DO NOT PUSH** - User will push when ready
+4. Report completion with summary
 
 ## State Management
 
@@ -135,23 +146,48 @@ Maintain state in `.autonomous-worker/state.json`:
   "current_task": "task description",
   "current_iteration": 1,
   "total_iterations": 3,
-  "status": "analyzing|implementing|reviewing|complete",
+  "phase": "analyzing|implementing|reviewing|complete",
   "worktree_path": "../aw-task-slug",
   "branch": "feature/aw-task-slug",
   "started_at": "ISO timestamp",
-  "tickets": {
-    "P0": 0,
-    "P1": 0,
-    "P2": 0
-  }
+  "tickets_resolved": []
 }
 ```
+
+## Review Validation (Not Ticket Generation)
+
+The review phase validates quality but does **NOT** generate tickets:
+
+### Security Reviewer Validates:
+- No new vulnerabilities introduced
+- Auth/authz properly implemented
+- Input validation present
+- No hardcoded secrets
+
+### Quality Reviewer Validates:
+- Code follows project conventions
+- No obvious code smells
+- Proper error handling
+- Clear naming
+
+### Test Reviewer Validates:
+- New code has tests
+- Existing tests still pass
+- Edge cases covered
+
+### Performance Reviewer Validates:
+- No N+1 queries introduced
+- Reasonable complexity
+- No obvious bottlenecks
+
+**If validation fails**: Fix in current/next iteration or report blocker.
 
 ## Important Rules
 
 - NEVER push to remote - only commit locally
 - ALL branches must originate from `staging`
-- Generate tickets with full context and reproduction steps
-- Prioritize P0 tickets - they block the cycle
-- Be autonomous but log everything for transparency
+- Work on TRIAGED tickets only (from `tickets/`)
+- Review validates, does NOT generate new tickets
+- Be autonomous but log everything
+- Mark tickets as resolved when done
 - Read CLAUDE.md context before starting

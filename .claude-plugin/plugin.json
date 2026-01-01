@@ -18,7 +18,9 @@
   "commands": [
     "./commands/cycle.md",
     "./commands/triage.md",
-    "./commands/status.md"
+    "./commands/status.md",
+    "./commands/analyze-improve.md",
+    "./commands/analyze-features.md"
   ],
   "agents": [
     "./agents/orchestrator.md",

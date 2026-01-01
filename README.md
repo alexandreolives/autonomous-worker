@@ -4,146 +4,163 @@ A multi-level autonomous agent orchestrator for Claude Code. Combines the best p
 
 ## Features
 
+- **Independent Ticket Generation** - Analyze code for improvements OR propose new features
 - **Iterative Development Cycles** - Analyze → Implement → Review → Loop → Commit
 - **Parallel Agent Execution** - Multiple specialized agents work simultaneously
-- **Smart Ticket Management** - Automatic issue detection and prioritization (P0/P1/P2)
+- **Smart Ticket Management** - Human triage before execution (generated ≠ triaged)
 - **Git Worktree Integration** - Isolated parallel development from staging branch
 - **Autonomous with Control** - Runs autonomously but respects user decisions
 
 ## Installation
 
 ```bash
-# Clone or copy to your Claude Code plugins directory
-cp -r autonomous-worker ~/.claude/plugins/
-
-# Or use as project-local plugin
-cp -r autonomous-worker /your/project/.claude-plugins/
+# Add via marketplace
+claude marketplace add https://github.com/alexandreolives/autonomous-worker
 ```
 
 ## Quick Start
 
-### 1. Add Context to Your Project
-
-Copy the template from `templates/CLAUDE-section.md` into your project's `CLAUDE.md`:
-
-```markdown
-## Autonomous Worker Context
-
-### Project Overview
-**Project:** My Awesome App
-**Stack:** Python, FastAPI, PostgreSQL
-
-### Code Conventions
-...
-```
-
-### 2. Run a Development Cycle
+### 1. Analyze Your Codebase
 
 ```bash
-# Start a 3-iteration development cycle
-/aw:cycle "Implement user authentication with OAuth" --iterations 3
+# Find improvements in existing code
+/aw:analyze-improve
+
+# Propose new features
+/aw:analyze-features
 ```
 
-This will:
-1. **Analyze** - 3 parallel agents examine your codebase
-2. **Implement** - Write the feature based on analysis
-3. **Review** - 4 parallel agents check for issues
-4. **Generate Tickets** - Create P0/P1/P2 tickets for issues found
-5. **Loop** - Repeat for 3 iterations, fixing tickets each time
-6. **Commit** - Auto-commit when complete (no push)
+### 2. Triage Generated Tickets
 
-### 3. Check Status
+```bash
+# Review and approve tickets
+/aw:triage --source improvements
+/aw:triage --source features
+```
+
+### 3. Run a Development Cycle
+
+```bash
+# Work on approved tickets
+/aw:cycle --iterations 3
+
+# Or execute a direct task
+/aw:cycle "Implement user authentication" --iterations 3
+```
+
+### 4. Check Status
 
 ```bash
 /aw:status
-```
-
-Shows active cycles, pending tickets, and worktree status.
-
-### 4. Triage Tickets
-
-```bash
-/aw:triage                    # Interactive triage
-/aw:triage --priority P0      # View critical tickets only
-/aw:triage --action edit 001  # Edit a specific ticket
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `/aw:cycle "<task>" --iterations N` | Run development cycle with N iterations |
-| `/aw:triage` | Manage and prioritize tickets |
-| `/aw:status` | View current cycle and ticket status |
+| `/aw:analyze-improve` | Generate improvement tickets (security, quality, performance) |
+| `/aw:analyze-features` | Study project and propose new features |
+| `/aw:triage` | Review, approve, or reject generated tickets |
+| `/aw:cycle` | Execute development cycle on approved tickets |
+| `/aw:status` | View current status and pending work |
 
-## Architecture
+## Workflow
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      ORCHESTRATOR                           │
-│                 (Coordinates all phases)                    │
-└─────────────────────────────────┬───────────────────────────┘
-                                  │
-         ┌────────────────────────┼────────────────────────┐
-         ▼                        ▼                        ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│    ANALYZE      │    │   IMPLEMENT     │    │     REVIEW      │
-│   (Parallel)    │    │   (Sequential)  │    │   (Parallel)    │
-├─────────────────┤    ├─────────────────┤    ├─────────────────┤
-│ • Structure     │    │ • Code changes  │    │ • Security      │
-│ • Patterns      │    │ • Fix tickets   │    │ • Quality       │
-│ • Risks         │    │ • Add tests     │    │ • Tests         │
-└─────────────────┘    └─────────────────┘    │ • Performance   │
-                                              └─────────────────┘
-                                                       │
-                                                       ▼
-                                              ┌─────────────────┐
-                                              │  TICKET SYSTEM  │
-                                              ├─────────────────┤
-                                              │ P0: Critical    │
-                                              │ P1: Important   │
-                                              │ P2: Improvement │
-                                              └─────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                        TICKET GENERATION                          │
+│                    (Independent from cycle)                       │
+├─────────────────────────────┬────────────────────────────────────┤
+│  /aw:analyze-improve        │  /aw:analyze-features              │
+│  ────────────────────       │  ─────────────────────             │
+│  • Security issues          │  • Study project deeply            │
+│  • Code quality             │  • Propose new capabilities        │
+│  • Performance problems     │  • Integration opportunities       │
+│  • Pattern violations       │  • UX improvements                 │
+└─────────────────────────────┴────────────────────────────────────┘
+                                    │
+                                    ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                           TRIAGE                                  │
+│                    /aw:triage                                     │
+├──────────────────────────────────────────────────────────────────┤
+│  • Review each generated ticket                                   │
+│  • Approve → moves to tickets/ queue                             │
+│  • Reject → logged in rejected/                                  │
+│  • Edit → modify before approving                                │
+└──────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                      DEVELOPMENT CYCLE                            │
+│                    /aw:cycle --iterations N                       │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│   ANALYZE ──→ IMPLEMENT ──→ REVIEW ──→ LOOP ──→ COMMIT           │
+│   (parallel)  (execute)    (validate)  (N times)  (no push)      │
+│                                                                   │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-## Agents
-
-### Analyzers (Phase 1 - Parallel)
-- **structure-analyzer** - Codebase architecture and organization
-- **pattern-analyzer** - Existing patterns and conventions
-- **risk-analyzer** - Potential issues and edge cases
-
-### Implementer (Phase 2 - Sequential)
-- **implementer** - Writes code, fixes tickets, adds tests
-
-### Reviewers (Phase 3 - Parallel)
-- **security-reviewer** - OWASP vulnerabilities, injection, auth issues
-- **quality-reviewer** - Code smells, SOLID, naming, conventions
-- **test-reviewer** - Coverage, edge cases, test quality
-- **performance-reviewer** - N+1 queries, bottlenecks, memory
-
-## Ticket System
-
-Tickets are stored in `.autonomous-worker/tickets/`:
+## Folder Structure
 
 ```
 .autonomous-worker/
-├── tickets/
-│   ├── P0-critical/      # Must fix before continuing
-│   ├── P1-important/     # Should fix in this cycle
-│   ├── P2-improvement/   # Nice to have
-│   └── resolved/         # Completed tickets
-├── state.json            # Current cycle state
-└── cycle-log.md          # Activity log
+├── generated/              # Auto-generated, needs triage
+│   ├── improvements/       # From /aw:analyze-improve
+│   │   ├── security/
+│   │   ├── quality/
+│   │   ├── performance/
+│   │   └── patterns/
+│   └── features/           # From /aw:analyze-features
+│
+├── tickets/                # Triaged, ready for cycle
+│   ├── P0-critical/        # Must fix immediately
+│   ├── P1-important/       # Should fix in this cycle
+│   ├── P2-improvement/     # Fix if time permits
+│   └── resolved/           # Completed
+│
+├── rejected/               # Decided against (logged)
+├── state.json              # Current cycle state
+└── cycle-log.md            # Activity log
 ```
 
-### Priority Levels
+## Architecture
 
-| Priority | Meaning | Action |
-|----------|---------|--------|
-| **P0** | Critical/Blocking | Must fix immediately |
-| **P1** | Important | Fix within cycle |
-| **P2** | Improvement | Fix if time permits |
+The plugin uses a multi-level architecture:
+
+### Level 1: Orchestrator
+- Manages cycle phases
+- Coordinates agent spawning
+- Aggregates results
+
+### Level 2: Agents (Choose based on task)
+
+**Async Agents (preferred):**
+- Fast startup, shared context
+- Used for: analyzers, reviewers, quick tasks
+
+**claude -p (when needed):**
+- Full isolation, survives session end
+- Used for: worktree work, long implementations
+
+See `docs/ARCHITECTURE.md` for full details.
+
+## Agents
+
+### Analyzers (Parallel)
+- **structure** - Codebase architecture and organization
+- **patterns** - Existing patterns and conventions
+- **risks** - Potential issues and edge cases
+
+### Implementer
+- Writes code, fixes tickets, adds tests
+
+### Reviewers (Parallel - Validate, not generate)
+- **security** - OWASP vulnerabilities, auth issues
+- **quality** - Code smells, SOLID, naming
+- **tests** - Coverage, edge cases
+- **performance** - N+1 queries, bottlenecks
 
 ## Git Workflow
 
@@ -159,22 +176,9 @@ staging ┼───────────────────────
         │           feature/aw-api-refactor
 ```
 
-- Worktrees enable parallel agent work
+- Worktrees enable parallel isolated work
 - Commit happens automatically (no push)
 - Push when you're ready to integrate
-
-## Skills
-
-- **ticket-management** - Ticket creation, prioritization, resolution
-- **worktree-parallel** - Git worktree patterns for parallel work
-
-## Hooks
-
-- **Stop** - Continue cycle if iterations remain
-- **SubagentStop** - Collect and aggregate agent results
-- **PreToolUse** - Log agent spawns
-- **PostToolUse** - Track file changes
-- **SessionStart** - Load context and show status
 
 ## Configuration
 
