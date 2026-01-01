@@ -107,10 +107,10 @@ Wait for all to complete with TaskOutput, then:
 **For complex tasks needing isolation:**
 ```bash
 # Create worktree
-git worktree add ../aw-{slug} -b feature/aw-{slug} staging
+git worktree add .worktrees/aw-{slug} -b feature/aw-{slug} staging
 
 # Spawn isolated implementation
-cd ../aw-{slug} && claude -p "
+cd .worktrees/aw-{slug} && claude -p "
 Implement: {task}
 Context: {analysis summary}
 Rules: Commit when done, do not push
@@ -192,8 +192,8 @@ Use TaskOutput for each task_id with block: true
 
 ```bash
 # Only for worktree/long-running tasks
-git worktree add ../aw-feature -b feature/aw-feature staging
-cd ../aw-feature
+git worktree add .worktrees/aw-feature -b feature/aw-feature staging
+cd .worktrees/aw-feature
 
 # Run isolated
 claude -p "Implement feature completely" \

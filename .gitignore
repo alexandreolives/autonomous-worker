@@ -1,5 +1,6 @@
 # Autonomous Worker Runtime Files
 .autonomous-worker/
+.worktrees/
 *.local.md
 
 # OS files

@@ -92,7 +92,7 @@ Then use TaskOutput to collect results.
 **Spawning pattern:**
 ```bash
 # Create worktree first
-git worktree add ../aw-feature-x -b feature/x staging
+git worktree add .worktrees/aw-feature-x -b feature/x staging
 
 # Spawn isolated agent
 cd ../aw-feature-x && claude -p "Implement feature X" \
@@ -211,7 +211,7 @@ Wait for all with TaskOutput, then aggregate.
 ### Worktree Execution (claude -p)
 ```bash
 # Create worktree
-git worktree add ../aw-feature-x -b feature/x staging
+git worktree add .worktrees/aw-feature-x -b feature/x staging
 
 # Run isolated agent
 cd ../aw-feature-x

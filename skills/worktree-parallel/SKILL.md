@@ -18,14 +18,13 @@ The autonomous-worker uses git worktrees to enable parallel agent work in comple
 Git worktrees allow multiple working directories sharing the same `.git` database:
 
 ```
-project/                    # Main working directory
-├── .git/                   # Shared git database
-└── src/
-
-../aw-feature-auth/         # Worktree 1 (isolated)
-└── src/
-
-../aw-feature-payments/     # Worktree 2 (isolated)
+project/                         # Main working directory
+├── .git/                        # Shared git database
+├── .worktrees/                  # All worktrees in one place
+│   ├── aw-feature-auth/         # Worktree 1 (isolated)
+│   │   └── src/
+│   └── aw-feature-payments/     # Worktree 2 (isolated)
+│       └── src/
 └── src/
 ```
 
@@ -62,14 +61,14 @@ staging ─┼──────────────────────
 cd /path/to/project
 
 # Create worktree from staging
-git worktree add ../aw-<task-slug> -b feature/aw-<task-slug> staging
+git worktree add .worktrees/aw-<task-slug> -b feature/aw-<task-slug> staging
 
 # Example
-git worktree add ../aw-oauth-auth -b feature/aw-oauth-auth staging
+git worktree add .worktrees/aw-oauth-auth -b feature/aw-oauth-auth staging
 ```
 
 This creates:
-- New directory `../aw-oauth-auth`
+- New directory `.worktrees/aw-oauth-auth`
 - New branch `feature/aw-oauth-auth` from `staging`
 - Linked to main project's `.git`
 
@@ -78,11 +77,11 @@ This creates:
 After creating worktree, set up the environment:
 
 ```bash
-cd ../aw-<task-slug>
+cd .worktrees/aw-<task-slug>
 
 # Copy environment files
-cp ../project/.env .env 2>/dev/null || true
-cp ../project/.env.local .env.local 2>/dev/null || true
+cp ../../.env .env 2>/dev/null || true
+cp ../../.env.local .env.local 2>/dev/null || true
 
 # Install dependencies
 npm install 2>/dev/null || pip install -r requirements.txt 2>/dev/null || bundle install 2>/dev/null
@@ -95,7 +94,7 @@ git status
 
 ```bash
 # Navigate to worktree
-cd ../aw-oauth-auth
+cd .worktrees/aw-oauth-auth
 
 # Work as normal
 git add .
@@ -110,7 +109,7 @@ When task is complete:
 
 ```bash
 # In worktree directory
-cd ../aw-oauth-auth
+cd .worktrees/aw-oauth-auth
 
 # Final commit
 git add -A
@@ -126,10 +125,10 @@ git commit -m "feat: complete OAuth authentication
 git push -u origin feature/aw-oauth-auth
 
 # Return to main project
-cd ../project
+cd ../..
 
 # Remove worktree (keeps branch)
-git worktree remove ../aw-oauth-auth
+git worktree remove .worktrees/aw-oauth-auth
 ```
 
 ### Listing Worktrees
@@ -140,19 +139,19 @@ git worktree list
 
 Output:
 ```
-/home/user/project           abc1234 [main]
-/home/user/aw-oauth-auth     def5678 [feature/aw-oauth-auth]
-/home/user/aw-payments       ghi9012 [feature/aw-payments]
+/home/user/project                          abc1234 [main]
+/home/user/project/.worktrees/aw-oauth-auth def5678 [feature/aw-oauth-auth]
+/home/user/project/.worktrees/aw-payments   ghi9012 [feature/aw-payments]
 ```
 
 ### Cleaning Up
 
 ```bash
 # Remove worktree directory (keeps branch)
-git worktree remove ../aw-oauth-auth
+git worktree remove .worktrees/aw-oauth-auth
 
 # Force remove if needed
-git worktree remove --force ../aw-oauth-auth
+git worktree remove --force .worktrees/aw-oauth-auth
 
 # Prune stale worktrees
 git worktree prune
@@ -170,20 +169,21 @@ TASK1="Implement authentication"
 TASK2="Implement payment processing"
 TASK3="Add email notifications"
 
-# Create worktrees
-git worktree add ../aw-auth -b feature/aw-auth staging
-git worktree add ../aw-payments -b feature/aw-payments staging
-git worktree add ../aw-emails -b feature/aw-emails staging
+# Create worktrees directory and worktrees
+mkdir -p .worktrees
+git worktree add .worktrees/aw-auth -b feature/aw-auth staging
+git worktree add .worktrees/aw-payments -b feature/aw-payments staging
+git worktree add .worktrees/aw-emails -b feature/aw-emails staging
 
 # Copy env files
-for dir in ../aw-auth ../aw-payments ../aw-emails; do
+for dir in .worktrees/aw-auth .worktrees/aw-payments .worktrees/aw-emails; do
     cp .env "$dir/.env" 2>/dev/null || true
 done
 
 # Spawn agents in parallel
-(cd ../aw-auth && claude -p "$TASK1" --allowedTools "Read,Write,Edit,Bash") &
-(cd ../aw-payments && claude -p "$TASK2" --allowedTools "Read,Write,Edit,Bash") &
-(cd ../aw-emails && claude -p "$TASK3" --allowedTools "Read,Write,Edit,Bash") &
+(cd .worktrees/aw-auth && claude -p "$TASK1" --allowedTools "Read,Write,Edit,Bash") &
+(cd .worktrees/aw-payments && claude -p "$TASK2" --allowedTools "Read,Write,Edit,Bash") &
+(cd .worktrees/aw-emails && claude -p "$TASK3" --allowedTools "Read,Write,Edit,Bash") &
 
 # Wait for all
 wait
@@ -197,7 +197,7 @@ echo "All parallel agents complete"
 #!/bin/bash
 # collect-results.sh
 
-for worktree in ../aw-*; do
+for worktree in .worktrees/aw-*; do
     if [ -d "$worktree" ]; then
         branch=$(cd "$worktree" && git branch --show-current)
         status=$(cd "$worktree" && git status --short | wc -l)
@@ -220,7 +220,7 @@ The autonomous-worker tracks worktrees in `state.json`:
 {
   "current_task": "Implement OAuth",
   "worktree": {
-    "path": "../aw-oauth-auth",
+    "path": ".worktrees/aw-oauth-auth",
     "branch": "feature/aw-oauth-auth",
     "base": "staging",
     "created_at": "2025-01-01T10:00:00Z"
@@ -250,15 +250,15 @@ The autonomous-worker tracks worktrees in `state.json`:
 ### Worktree Already Exists
 ```bash
 # If directory exists but isn't linked
-rm -rf ../aw-task-name
+rm -rf .worktrees/aw-task-name
 git worktree prune
-git worktree add ../aw-task-name -b feature/aw-task-name staging
+git worktree add .worktrees/aw-task-name -b feature/aw-task-name staging
 ```
 
 ### Branch Already Exists
 ```bash
 # If branch exists, check it out instead
-git worktree add ../aw-task-name feature/aw-task-name
+git worktree add .worktrees/aw-task-name feature/aw-task-name
 ```
 
 ### Merge Conflicts

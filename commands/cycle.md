@@ -46,7 +46,7 @@ Examples:
 1. **Check for staging branch**: All work MUST branch from `staging`, never from `main`
 2. **Create worktree** if doing parallel work:
    ```bash
-   git worktree add ../aw-<task-slug> -b feature/aw-<task-slug> staging
+   git worktree add .worktrees/aw-<task-slug> -b feature/aw-<task-slug> staging
    ```
 3. **Read project context** from CLAUDE.md
 4. **Check ticket queue**:
