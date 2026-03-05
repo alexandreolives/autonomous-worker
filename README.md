@@ -1,212 +1,139 @@
 # Autonomous Worker
 
-A multi-level autonomous agent orchestrator for Claude Code. Combines the best patterns from compound-engineering, claude-code-settings, and ralph-wiggum to create a powerful development workflow.
+A multi-level autonomous agent orchestrator for Claude Code. Combines **compound-engineering** agents for deep analysis/review with **worktrunk** for isolated parallel worktrees.
 
 ## Features
 
-- **Independent Ticket Generation** - Analyze code for improvements OR propose new features
-- **Iterative Development Cycles** - Analyze → Implement → Review → Loop → Commit
-- **Parallel Agent Execution** - Multiple specialized agents work simultaneously
-- **Smart Ticket Management** - Human triage before execution (generated ≠ triaged)
-- **Git Worktree Integration** - Isolated parallel development from staging branch
-- **Autonomous with Control** - Runs autonomously but respects user decisions
+- **Iterative Development Cycles** — Analyze → Implement → Review → Loop → Commit
+- **Compound-Engineering Integration** — Uses 27 specialized agents for analysis and review
+- **Worktrunk Worktrees** — Isolated parallel development via `wt` + tmux
+- **Smart Ticket Management** — Auto-generate, triage, and resolve tickets (P0/P1/P2)
+- **Dual Ticket System** — Works with both autonomous-worker tickets and compound-engineering todos
 
-## Installation
+## Prerequisites
 
-```bash
-# Add via marketplace
-claude marketplace add https://github.com/alexandreolives/autonomous-worker
-```
+- [worktrunk](https://github.com/max-sixty/worktrunk) (`wt`) installed and configured
+- [tmux](https://github.com/tmux/tmux) for parallel sessions
+- [compound-engineering](https://github.com/EveryInc/every-marketplace) plugin enabled
+- `gh` CLI for PR operations
 
 ## Quick Start
 
-### 1. Analyze Your Codebase
+### 1. Analyze & Generate Tickets
 
 ```bash
-# Find improvements in existing code
-/aw:analyze-improve
-
-# Propose new features
-/aw:analyze-features
+/aw:analyze-improve                    # Find code improvements
+/aw:analyze-features                   # Propose new features
 ```
 
-### 2. Triage Generated Tickets
+### 2. Triage Tickets
 
 ```bash
-# Review and approve tickets
-/aw:triage --source improvements
-/aw:triage --source features
+/aw:triage                             # Interactive triage (supports both ticket systems)
+/aw:triage --source improvements       # Triage improvement tickets
+/aw:triage --source todos              # Triage compound-engineering todos
 ```
 
-### 3. Run a Development Cycle
+### 3. Run Development Cycle
 
 ```bash
-# Work on approved tickets
-/aw:cycle --iterations 3
-
-# Or execute a direct task
-/aw:cycle "Implement user authentication" --iterations 3
+/aw:cycle "Implement OAuth" --iterations 3              # Basic cycle
+/aw:cycle "Implement OAuth" --iterations 3 --worktree   # With isolated worktree
+/aw:cycle --iterations 3                                # Work on triaged tickets
 ```
 
 ### 4. Check Status
 
 ```bash
-/aw:status
+/aw:status                             # Full status (cycle, worktrees, tickets, todos)
+```
+
+### 5. Resolve Todos via Worktrees
+
+```bash
+/resolve                               # Resolve ready todos in parallel worktrees
+```
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      ORCHESTRATOR                           │
+│            (Coordinates all phases & agents)                │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+      ┌────────────────────┼────────────────────────┐
+      ▼                    ▼                        ▼
+┌───────────────┐  ┌───────────────┐  ┌──────────────────────┐
+│   ANALYZE     │  │  IMPLEMENT    │  │       REVIEW         │
+│  (Parallel)   │  │ (Sequential)  │  │     (Parallel)       │
+├───────────────┤  ├───────────────┤  ├──────────────────────┤
+│ explore-      │  │ Code changes  │  │ security-sentinel    │
+│   codebase    │  │ Fix tickets   │  │ performance-oracle   │
+│ research-     │  │ Add tests     │  │ architecture-strat.  │
+│   analyst     │  │               │  │ code-simplicity      │
+│ best-         │  │               │  │ pattern-recognition  │
+│   practices   │  │               │  │ data-integrity       │
+└───────────────┘  └───────────────┘  └──────────────────────┘
+                                               │
+                           ┌───────────────────┘
+                           ▼
+                  ┌──────────────────┐     ┌──────────────────┐
+                  │  TICKET SYSTEM   │     │  WORKTRUNK       │
+                  ├──────────────────┤     ├──────────────────┤
+                  │ P0: Critical     │     │ wt switch        │
+                  │ P1: Important    │     │ wt merge         │
+                  │ P2: Improvement  │     │ wt list          │
+                  │ + CE todos       │     │ tmux sessions    │
+                  └──────────────────┘     └──────────────────┘
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `/aw:analyze-improve` | Generate improvement tickets (security, quality, performance) |
-| `/aw:analyze-features` | Study project and propose new features |
-| `/aw:triage` | Review, approve, or reject generated tickets |
-| `/aw:cycle` | Execute development cycle on approved tickets |
-| `/aw:status` | View current status and pending work |
+| `/aw:cycle "<task>" --iterations N [--worktree] [--pr]` | Run development cycle |
+| `/aw:triage [--source type]` | Triage tickets and todos |
+| `/aw:status` | View full system status |
+| `/aw:analyze-improve [--scope path] [--focus type]` | Generate improvement tickets |
+| `/aw:analyze-features [--context desc]` | Propose new features |
 
-## Workflow
+## Integration with Compound-Engineering
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                        TICKET GENERATION                          │
-│                    (Independent from cycle)                       │
-├─────────────────────────────┬────────────────────────────────────┤
-│  /aw:analyze-improve        │  /aw:analyze-features              │
-│  ────────────────────       │  ─────────────────────             │
-│  • Security issues          │  • Study project deeply            │
-│  • Code quality             │  • Propose new capabilities        │
-│  • Performance problems     │  • Integration opportunities       │
-│  • Pattern violations       │  • UX improvements                 │
-└─────────────────────────────┴────────────────────────────────────┘
-                                    │
-                                    ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                           TRIAGE                                  │
-│                    /aw:triage                                     │
-├──────────────────────────────────────────────────────────────────┤
-│  • Review each generated ticket                                   │
-│  • Approve → moves to tickets/ queue                             │
-│  • Reject → logged in rejected/                                  │
-│  • Edit → modify before approving                                │
-└──────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                      DEVELOPMENT CYCLE                            │
-│                    /aw:cycle --iterations N                       │
-├──────────────────────────────────────────────────────────────────┤
-│                                                                   │
-│   ANALYZE ──→ IMPLEMENT ──→ REVIEW ──→ LOOP ──→ COMMIT           │
-│   (parallel)  (execute)    (validate)  (N times)  (no push)      │
-│                                                                   │
-└──────────────────────────────────────────────────────────────────┘
-```
+This plugin uses compound-engineering agents for analysis and review:
 
-## Folder Structure
+**Analysis Phase**: `explore-codebase`, `repo-research-analyst`, `best-practices-researcher`
+
+**Review Phase**: `security-sentinel`, `performance-oracle`, `architecture-strategist`, `code-simplicity-reviewer`, `pattern-recognition-specialist`
+
+## Integration with Worktrunk
+
+Uses `wt` (worktrunk) instead of raw `git worktree` commands:
+- `wt switch --create` — create worktree + branch
+- `wt merge` — squash, commit (via Claude), rebase, cleanup
+- `wt list` — monitor worktrees and Claude sessions
+- tmux post-switch hook — auto-rename windows to `repo(branch)`
+
+## Ticket System
 
 ```
 .autonomous-worker/
 ├── generated/              # Auto-generated, needs triage
-│   ├── improvements/       # From /aw:analyze-improve
-│   │   ├── security/
-│   │   ├── quality/
-│   │   ├── performance/
-│   │   └── patterns/
-│   └── features/           # From /aw:analyze-features
-│
-├── tickets/                # Triaged, ready for cycle
-│   ├── P0-critical/        # Must fix immediately
-│   ├── P1-important/       # Should fix in this cycle
-│   ├── P2-improvement/     # Fix if time permits
-│   └── resolved/           # Completed
-│
-├── rejected/               # Decided against (logged)
-├── state.json              # Current cycle state
-└── cycle-log.md            # Activity log
+│   ├── improvements/
+│   └── features/
+├── tickets/                # Triaged, ready for /aw:cycle
+│   ├── P0-critical/
+│   ├── P1-important/
+│   ├── P2-improvement/
+│   └── resolved/
+└── rejected/
+
+todos/                      # Compound-engineering todos (also triageable)
+├── *-pending-*.md
+├── *-ready-*.md
+└── *-complete-*.md
 ```
-
-## Architecture
-
-The plugin uses a multi-level architecture:
-
-### Level 1: Orchestrator
-- Manages cycle phases
-- Coordinates agent spawning
-- Aggregates results
-
-### Level 2: Agents (Choose based on task)
-
-**Async Agents (preferred):**
-- Fast startup, shared context
-- Used for: analyzers, reviewers, quick tasks
-
-**claude -p (when needed):**
-- Full isolation, survives session end
-- Used for: worktree work, long implementations
-
-See `docs/ARCHITECTURE.md` for full details.
-
-## Agents
-
-### Analyzers (Parallel)
-- **structure** - Codebase architecture and organization
-- **patterns** - Existing patterns and conventions
-- **risks** - Potential issues and edge cases
-
-### Implementer
-- Writes code, fixes tickets, adds tests
-
-### Reviewers (Parallel - Validate, not generate)
-- **security** - OWASP vulnerabilities, auth issues
-- **quality** - Code smells, SOLID, naming
-- **tests** - Coverage, edge cases
-- **performance** - N+1 queries, bottlenecks
-
-## Git Workflow
-
-All work happens on branches from `staging`:
-
-```
-main ──────────────────────────────────────
-        │
-staging ┼───────────────────────────────────
-        │         │
-        │  feature/aw-oauth-auth
-        │                  │
-        │           feature/aw-api-refactor
-```
-
-- Worktrees enable parallel isolated work
-- Commit happens automatically (no push)
-- Push when you're ready to integrate
-
-## Configuration
-
-### CLAUDE.md Context
-
-Add the `## Autonomous Worker Context` section to your CLAUDE.md to provide:
-- Project overview and stack
-- Code conventions
-- Critical files to avoid
-- Domain knowledge
-- Testing requirements
-
-See `templates/CLAUDE-section.md` for the full template.
-
-## Inspired By
-
-- [compound-engineering](https://github.com/EveryInc/compound-engineering-plugin) - Ticket system, parallel reviews, worktrees
-- [claude-code-settings](https://github.com/feiskyer/claude-code-settings) - Agent structure, approval flows
-- [ralph-wiggum](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/ralph-wiggum) - Long-running task patterns
 
 ## License
 
 MIT
-
-## Contributing
-
-Contributions welcome! Please open an issue or PR.
-
----
-
-Made with 🤖 by autonomous-worker

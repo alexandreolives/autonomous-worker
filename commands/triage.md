@@ -1,7 +1,7 @@
 ---
 name: triage
-description: Review and approve generated tickets, moving them from generated/ to tickets/ for cycle processing. Also manage existing triaged tickets.
-argument-hint: "[--source improvements|features] [--priority P0|P1|P2] [--action list|approve|edit|resolve|delete]"
+description: Review and triage tickets from generated/ or todos/. Supports both autonomous-worker tickets and compound-engineering todo files.
+argument-hint: "[--source improvements|features|todos] [--priority P0|P1|P2] [--action list|approve|edit|resolve|reject|delete]"
 allowed-tools:
   - Read
   - Write
@@ -14,206 +14,123 @@ allowed-tools:
 
 # Autonomous Worker: Ticket Triage
 
-You are helping the user review generated tickets and manage the ticket workflow.
+Review and approve tickets for processing. Works with both autonomous-worker generated tickets AND compound-engineering todo files.
 
-## Folder Structure
+**NE PAS CODER PENDANT LE TRIAGE !**
 
-```
-.autonomous-worker/
-├── generated/              # Auto-generated, needs triage
-│   ├── improvements/       # From /aw:analyze-improve
-│   │   ├── security/
-│   │   ├── quality/
-│   │   ├── performance/
-│   │   └── patterns/
-│   └── features/           # From /aw:analyze-features
-│       └── FEATURE-*.md
-│
-├── tickets/                # Triaged, ready for cycle
-│   ├── P0-critical/
-│   ├── P1-important/
-│   ├── P2-improvement/
-│   └── resolved/
-│
-└── rejected/               # Tickets decided against
-    └── *.md
+## Compatible Sources
+
+1. **autonomous-worker generated tickets**: `.autonomous-worker/generated/{improvements,features}/`
+2. **compound-engineering todos**: `todos/*-pending-*.md`
+3. **Both**: Auto-detect what's available
+
+## Auto-Detection
+
+On startup, check what exists:
+```bash
+ls .autonomous-worker/generated/improvements/**/*.md 2>/dev/null | wc -l
+ls .autonomous-worker/generated/features/**/*.md 2>/dev/null | wc -l
+ls todos/*-pending-*.md 2>/dev/null | wc -l
 ```
 
-**Key Concept**:
-- `generated/` = proposals that need human review
-- `tickets/` = approved work items for `/aw:cycle`
-- `rejected/` = decisions logged for future reference
+Present summary of all available items.
 
-## Commands
-
-### Triage Generated Tickets (Main Flow)
-
-**Review improvements:**
-```
-/aw:triage --source improvements
-```
-
-**Review features:**
-```
-/aw:triage --source features
-```
-
-For each generated ticket, the user can:
-- **Approve** → Move to `tickets/P{priority}/`
-- **Edit** → Modify then approve
-- **Reject** → Move to `rejected/` with reason
-- **Skip** → Leave for later
-
-### List Tickets
-
-Show tickets in different locations:
-- `/aw:triage` - Interactive mode, show summary of all
-- `/aw:triage --source improvements` - Triage generated improvements
-- `/aw:triage --source features` - Triage generated features
-- `/aw:triage --priority P0` - Show only critical approved tickets
-
-### Approve Ticket
-Move a generated ticket to the approved queue:
-- `/aw:triage --action approve IMP-xxx --priority P1`
-- `/aw:triage --action approve FEAT-xxx --priority P2`
-
-### Edit Ticket
-Open a ticket for modification:
-- `/aw:triage --action edit TICKET-ID`
-
-### Resolve Ticket
-Mark an approved ticket as done:
-- `/aw:triage --action resolve TICKET-ID`
-
-### Reject Ticket
-Move to rejected with reason:
-- `/aw:triage --action reject TICKET-ID`
-
-### Delete Ticket
-Permanently remove (no trace):
-- `/aw:triage --action delete TICKET-ID`
-
-## Interactive Triage Mode
-
-When called with `--source`, enter interactive mode:
+## Interactive Triage Flow
 
 ### Step 1: Show Summary
+
 ```
-📊 Generated Tickets Summary
+Triage Summary
 
-Improvements (from /aw:analyze-improve):
-├── Security: 3 tickets
-├── Quality: 7 tickets
-├── Performance: 2 tickets
-└── Patterns: 5 tickets
+autonomous-worker generated:
+  Improvements: {X} tickets
+  Features: {Y} tickets
 
-Features (from /aw:analyze-features):
-└── Proposals: 8 tickets
+compound-engineering todos:
+  Pending: {Z} todos
 
-Total awaiting triage: 25 tickets
+Total awaiting triage: {total}
 
 What would you like to triage?
-1. Improvements (17 tickets)
-2. Features (8 tickets)
-3. View approved queue (tickets/)
+1. Improvements ({X} tickets)
+2. Features ({Y} tickets)
+3. Compound-engineering todos ({Z} pending)
+4. Everything
 ```
 
-### Step 2: Review Each Ticket
+### Step 2: Review Each Item
 
-For each ticket, display:
+For each ticket/todo, display:
 ```
-─────────────────────────────────────────
-📋 IMP-20250101-a3f2 | Security | P1 suggested
+---
+Progress: X/Y
 
-SQL Injection in User Search
+#{id}: {Title}
 
-File: src/services/user.py:45
-Impact: High - Database compromise possible
+Priority: P0 (CRITICAL) / P1 (IMPORTANT) / P2 (IMPROVEMENT)
+Category: {Security/Quality/Performance/etc.}
+Location: {file_path:line_number}
+Impact: {description}
+Suggested Fix: {summary}
+Effort: {Small/Medium/Large}
 
-Summary: The findUserByName function uses string
-concatenation for SQL queries...
-
-Suggested fix: Use parameterized queries
-
-─────────────────────────────────────────
-[A]pprove as P1 | [P]riority change | [E]dit | [R]eject | [S]kip
->
+---
+[A]pprove | [P]riority change | [E]dit | [R]eject | [S]kip
 ```
 
 ### Step 3: Process Decision
 
-**If Approve:**
-1. Assign ticket ID (001, 002, etc.)
-2. Move to `tickets/P{priority}/`
-3. Update ticket status to `approved`
+**Approve (autonomous-worker ticket):**
+1. Move to `.autonomous-worker/tickets/P{priority}/`
+2. Update status to `approved`
+3. Confirm
 
-**If Priority Change:**
-- Ask for new priority (P0/P1/P2)
-- Then approve with that priority
+**Approve (compound-engineering todo):**
+1. Rename: `{id}-pending-{priority}-{desc}.md` -> `{id}-ready-{priority}-{desc}.md`
+2. Update frontmatter: `status: pending` -> `status: ready`
+3. Confirm
 
-**If Edit:**
-1. Open ticket in editor
-2. Allow modifications
+**Reject:**
+1. Move to `.autonomous-worker/rejected/` (with reason) or delete todo file
+2. Log reason
+
+**Edit:**
+1. Ask what to modify
+2. Update
 3. Return to approve flow
 
-**If Reject:**
-1. Ask for reason
-2. Move to `rejected/` with reason in frontmatter
-3. Log for future reference
-
-**If Skip:**
-- Move to next ticket
+**Skip:**
+- Move to next item
 
 ### Step 4: Summary
 
-After triage session:
 ```
-📊 Triage Session Complete
+Triage Complete
 
-Approved: 12 tickets
-├── P0: 2
-├── P1: 5
-└── P2: 5
+Total: {X} | Approved: {Y} | Rejected: {Z} | Skipped: {W}
 
-Rejected: 3 tickets
-Skipped: 2 tickets (still in generated/)
+Approved items:
+- {ticket/todo 1} (P0)
+- {ticket/todo 2} (P1)
 
 Next steps:
-- Run /aw:cycle to work on approved tickets
-- Run /aw:triage to continue with remaining
+1. /aw:cycle - Work on approved aw tickets
+2. /resolve - Resolve compound-engineering todos via worktrees
+3. Commit the triage results
+4. Nothing
 ```
-
-## Ticket Statuses
-
-| Status | Location | Meaning |
-|--------|----------|---------|
-| generated | generated/ | Auto-created, needs review |
-| approved | tickets/ | Ready for /aw:cycle |
-| in_progress | tickets/ | Currently being worked |
-| resolved | tickets/resolved/ | Done |
-| rejected | rejected/ | Decided against |
 
 ## Bulk Operations
 
-For efficiency with many tickets:
-
 ```
 /aw:triage --bulk approve --source improvements --category security
-```
-→ Shows all security improvements, allow batch approve
-
-```
 /aw:triage --bulk reject --source features --complexity epic
 ```
-→ Reject all epic-complexity features (too big right now)
 
-## Best Practices
+## Important Rules
 
-1. **Triage before cycle** - Review generated tickets before running cycle
-2. **Be decisive** - Approve or reject, don't leave things in generated/ forever
-3. **Prioritize correctly**:
-   - P0 = Blocking, must fix before anything else
-   - P1 = Important, should be done soon
-   - P2 = Nice to have, when time permits
-4. **Add context** - When editing, add your knowledge about the codebase
-5. **Log rejections** - Future you will appreciate knowing why you said no
+- **NO CODING** during triage
+- Be decisive: approve or reject, don't leave things forever
+- P0 = Blocking | P1 = Important | P2 = Nice to have
+- Log rejections for future reference
+- Works seamlessly with both ticket systems

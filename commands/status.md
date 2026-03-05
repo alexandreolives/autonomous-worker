@@ -1,6 +1,6 @@
 ---
 name: status
-description: Display the current status of the autonomous worker - active cycles, worktrees, generated tickets, approved tickets, and progress.
+description: Display status of autonomous worker, worktrunk worktrees, and compound-engineering todos.
 argument-hint: "[--verbose]"
 allowed-tools:
   - Read
@@ -10,140 +10,75 @@ allowed-tools:
 
 # Autonomous Worker: Status
 
-Display comprehensive status of the autonomous worker system.
+Display comprehensive status combining autonomous-worker, worktrunk, and compound-engineering.
 
 ## Information to Display
 
-### 1. Active Cycle Status
-Read from `.autonomous-worker/state.json`:
+### 1. Active Cycle
+Read from `.autonomous-worker/state.json` if exists:
 ```
-📊 CYCLE STATUS
-───────────────────────────────────
-Task: "Add OAuth authentication"
-Progress: Iteration 2/3
-Phase: REVIEW (agents running)
-Started: 10 minutes ago
-Branch: feature/aw-oauth-auth
-Worktree: ../aw-oauth-auth
+CYCLE STATUS
+  Task: {task}
+  Progress: Iteration X/N ({phase})
+  Branch: {branch}
+  Started: {time ago}
 ```
 
-### 2. Generated Tickets (Awaiting Triage)
-Count tickets in `.autonomous-worker/generated/`:
-```
-📝 GENERATED (needs triage)
-───────────────────────────────────
-Improvements:
-  ├── Security:     3
-  ├── Quality:      7
-  ├── Performance:  2
-  └── Patterns:     5
-Features:           8
-───────────────────────────────────
-Total Pending:     25
-
-→ Run /aw:triage to review
-```
-
-### 3. Approved Tickets (Ready for Cycle)
-Count tickets in `.autonomous-worker/tickets/`:
-```
-🎫 APPROVED (ready for cycle)
-───────────────────────────────────
-P0 Critical:    2 (blocking)
-P1 Important:   5
-P2 Improvement: 3
-───────────────────────────────────
-Total Open:     10
-Resolved:       8
-
-→ Run /aw:cycle to work on these
-```
-
-### 4. Rejected Tickets
-Count in `.autonomous-worker/rejected/`:
-```
-❌ REJECTED: 4 tickets
-```
-
-### 5. Git Worktrees
-List active worktrees:
+### 2. Worktrunk Worktrees
 ```bash
-git worktree list
+wt list
+```
+
+### 3. Generated Tickets (Awaiting Triage)
+Count in `.autonomous-worker/generated/`:
+```
+GENERATED (needs triage)
+  Improvements: {X}
+  Features: {Y}
+```
+
+### 4. Approved Tickets
+Count in `.autonomous-worker/tickets/`:
+```
+APPROVED (ready for cycle)
+  P0 Critical:    {X}
+  P1 Important:   {Y}
+  P2 Improvement: {Z}
+  Resolved:       {W}
+```
+
+### 5. Compound-Engineering Todos
+```bash
+ls todos/*-pending-*.md 2>/dev/null | wc -l
+ls todos/*-ready-*.md 2>/dev/null | wc -l
+ls todos/*-complete-*.md 2>/dev/null | wc -l
 ```
 ```
-🌳 WORKTREES
-───────────────────────────────────
-/project (main)              → main
-/project-aw-oauth-auth       → feature/aw-oauth-auth *active*
-/project-aw-refactor-api     → feature/aw-refactor-api
+TODOS (compound-engineering)
+  Pending:  {X}
+  Ready:    {Y}
+  Complete: {Z}
 ```
 
 ### 6. Recent Activity
-Read from `.autonomous-worker/cycle-log.md`:
-```
-📜 RECENT ACTIVITY
-───────────────────────────────────
-[10:05] Iteration 1 - Analyzed codebase structure
-[10:08] Iteration 1 - Implemented OAuth provider
-[10:12] Iteration 1 - Review validated changes
-[10:15] Iteration 2 - Continuing with refinements...
-```
-
-### 7. Branch Status (if --verbose)
-```bash
-git status --short
-git log --oneline -5
-```
+Read last entries from `.autonomous-worker/cycle-log.md` if exists.
 
 ## Output Format
 
-### Active Cycle
 ```
-╔══════════════════════════════════════════════════════════════════╗
-║              AUTONOMOUS WORKER STATUS                             ║
-╠══════════════════════════════════════════════════════════════════╣
-║ 📊 Cycle: Iteration 2/3 (REVIEW phase)                           ║
-║ 📝 Generated: 25 pending triage                                   ║
-║ 🎫 Approved:  2 P0 | 5 P1 | 3 P2                                  ║
-║ 🌳 Worktree:  ../aw-oauth-auth (feature/aw-oauth-auth)            ║
-║ ⏱️  Running:  12 minutes                                          ║
-╚══════════════════════════════════════════════════════════════════╝
+AUTONOMOUS WORKER STATUS
+===========================
+Cycle:     {status or "No active cycle"}
+Worktrees: {count from wt list}
+Generated: {X} awaiting triage
+Tickets:   {X} P0 | {Y} P1 | {Z} P2
+Todos:     {X} pending | {Y} ready | {Z} complete
 
 Commands:
-  /aw:triage              - Review generated tickets
-  /aw:analyze-improve     - Generate improvement tickets
-  /aw:analyze-features    - Generate feature proposals
-```
-
-### No Active Cycle
-```
-╔══════════════════════════════════════════════════════════════════╗
-║              AUTONOMOUS WORKER STATUS                             ║
-╠══════════════════════════════════════════════════════════════════╣
-║ 💤 No active cycle                                               ║
-║ 📝 Generated: 25 pending triage                                   ║
-║ 🎫 Approved:  3 P1 | 2 P2 ready to work                          ║
-║ 🌳 Worktrees: 2 active                                           ║
-╚══════════════════════════════════════════════════════════════════╝
-
-Commands:
-  /aw:cycle "task" --iterations 3  - Start a new cycle
-  /aw:triage                       - Review generated tickets
-  /aw:analyze-improve              - Analyze for improvements
-  /aw:analyze-features             - Propose new features
-```
-
-### First Time (No Data)
-```
-╔══════════════════════════════════════════════════════════════════╗
-║              AUTONOMOUS WORKER STATUS                             ║
-╠══════════════════════════════════════════════════════════════════╣
-║ 🆕 Autonomous Worker not yet initialized                         ║
-╚══════════════════════════════════════════════════════════════════╝
-
-Get started:
-  /aw:analyze-improve     - Find improvements in existing code
-  /aw:analyze-features    - Propose new features
-  /aw:triage              - Review and approve tickets
-  /aw:cycle               - Execute development cycle
+  /aw:cycle "task"          - Start development cycle
+  /aw:analyze-improve       - Find improvements
+  /aw:analyze-features      - Propose features
+  /aw:triage                - Triage all pending items
+  /resolve                  - Resolve ready todos via worktrees
+  /workflows:review         - Deep code review (compound-engineering)
 ```

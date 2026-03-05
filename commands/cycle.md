@@ -1,7 +1,7 @@
 ---
 name: cycle
-description: Execute an iterative development cycle working on triaged tickets. Analyzes, implements, reviews, loops N times, then commits. Works only on approved tickets from tickets/ folder.
-argument-hint: "[<task description>] --iterations <N>"
+description: Execute an iterative development cycle. Analyzes, implements, reviews, loops N times, then commits. Uses worktrunk for parallel worktrees and compound-engineering agents for deep analysis.
+argument-hint: "[<task description>] [--iterations <N>] [--worktree] [--pr]"
 allowed-tools:
   - Task
   - Read
@@ -11,51 +11,52 @@ allowed-tools:
   - Glob
   - Grep
   - TodoWrite
+  - AskUserQuestion
 ---
 
 # Autonomous Worker: Development Cycle
 
-You are executing an iterative development cycle. This cycle:
-1. **ANALYZE** - Parallel agents examine the codebase and task
-2. **IMPLEMENT** - Execute the task or work on triaged tickets
-3. **REVIEW** - Parallel agents validate the implementation
-4. **LOOP** - Repeat for the specified number of iterations
-5. **COMMIT** - Auto-commit when all iterations complete (no push)
+Execute an iterative development cycle combining autonomous-worker orchestration with compound-engineering agents and worktrunk worktrees.
 
-## Important: Ticket Generation is Separate
+## Arguments
 
-**Ticket generation is NOT part of this cycle.**
-
-- Use `/aw:analyze-improve` to generate improvement tickets
-- Use `/aw:analyze-features` to generate feature tickets
-- Use `/aw:triage` to approve tickets for this cycle
-- This cycle works on **already triaged tickets** from `tickets/`
-
-## Arguments Parsing
-
-Parse the user's input:
-- `task_description`: Direct task OR "work tickets" to process ticket queue
-- `iterations`: Number of cycles (default: 3)
-
-Examples:
-- `/aw:cycle "Add OAuth authentication" --iterations 4`
-- `/aw:cycle --iterations 3` (works on triaged tickets)
+- `task_description`: What to implement (or omit to work on triaged tickets from `tickets/`)
+- `--iterations N`: Number of cycles (default: 3)
+- `--worktree`: Use worktrunk to create an isolated worktree for this cycle
+- `--pr`: Create a PR at the end
 
 ## Pre-Cycle Setup
 
-1. **Check for staging branch**: All work MUST branch from `staging`, never from `main`
-2. **Create worktree** if doing parallel work:
-   ```bash
-   git worktree add .worktrees/aw-<task-slug> -b feature/aw-<task-slug> staging
-   ```
-3. **Read project context** from CLAUDE.md
-4. **Check ticket queue**:
+1. **Read project context** from CLAUDE.md
+2. **Check ticket queue** if no task given:
    ```
    .autonomous-worker/tickets/
    ├── P0-critical/    # Process first
    ├── P1-important/   # Process second
    ├── P2-improvement/ # Process if time
    └── resolved/       # Completed
+   ```
+3. **If `--worktree`**: Create isolated worktree via worktrunk:
+   ```bash
+   wt switch --create aw-{task-slug}
+   ```
+   This creates a branch, a worktree, and switches to it.
+
+4. **Initialize state**:
+   ```bash
+   mkdir -p .autonomous-worker
+   ```
+   Write `.autonomous-worker/state.json`:
+   ```json
+   {
+     "current_task": "{task_description}",
+     "current_iteration": 1,
+     "total_iterations": N,
+     "phase": "analyzing",
+     "branch": "{current branch}",
+     "started_at": "{ISO timestamp}",
+     "tickets_resolved": []
+   }
    ```
 
 ## Iteration Loop
@@ -64,130 +65,109 @@ For each iteration (1 to N):
 
 ### Phase 1: ANALYZE (Parallel Agents)
 
-Launch these agents IN PARALLEL using Task tool with `run_in_background: true`:
+Launch agents IN PARALLEL. Use compound-engineering agents when available, fallback to built-in:
 
-1. **Structure Analyzer**: Examine architecture, file organization, dependencies
-2. **Pattern Analyzer**: Find existing patterns, conventions, similar implementations
-3. **Risk Analyzer**: Identify edge cases, potential issues with proposed changes
+**Core analysis (always):**
+1. Task explore-codebase("Analyze architecture, file organization, and dependencies relevant to: {task}")
+2. Task explore-codebase("Find existing patterns, conventions, and similar implementations for: {task}")
+3. Task explore-codebase("Identify risks, edge cases, and potential issues for: {task}")
 
-Wait for all agents to complete, then aggregate findings.
+**Extended analysis (if task is complex, launch additional compound-engineering agents):**
+4. Task compound-engineering:security-sentinel("Security analysis for: {task}")
+5. Task compound-engineering:performance-oracle("Performance analysis for: {task}")
+6. Task compound-engineering:architecture-strategist("Architecture impact analysis for: {task}")
+
+Wait for all agents, aggregate findings into a unified analysis.
 
 ### Phase 2: IMPLEMENT
 
-**If direct task (iteration 1)**:
-- Implement the described task based on analysis
+**If direct task (iteration 1):**
+- Implement based on analysis findings
+- Follow existing patterns identified in Phase 1
 
-**If working tickets**:
-- Read tickets from `tickets/P0-critical/` first
-- Then `P1-important/`, then `P2-improvement/`
+**If working tickets:**
+- Read tickets from `tickets/P0-critical/` first, then P1, then P2
 - Implement fixes for each
 
-Use the `implementer` agent for complex implementations.
+**If complex multi-file task and `--worktree` was used:**
+- Work directly in the worktree, we're already isolated
 
 ### Phase 3: REVIEW (Parallel Agents)
 
-Launch these agents IN PARALLEL to **validate** the implementation:
+Launch compound-engineering review agents IN PARALLEL:
 
-1. **Security Reviewer**: Check for vulnerabilities
-2. **Quality Reviewer**: Code quality, patterns, conventions
-3. **Test Reviewer**: Test coverage, edge cases
-4. **Performance Reviewer**: N+1 queries, bottlenecks
+1. Task compound-engineering:security-sentinel("Validate implementation security for: {task}")
+2. Task compound-engineering:code-simplicity-reviewer("Check code simplicity for changes made")
+3. Task compound-engineering:pattern-recognition-specialist("Verify patterns and anti-patterns in changes")
+4. Task compound-engineering:performance-oracle("Validate performance of implementation")
 
-**Review generates validation feedback, NOT new tickets.**
+**If the project has tests:**
+5. Run existing tests: `npm test` / `pytest` / `cargo test` / etc.
 
-If reviewers find issues:
+**Review results handling:**
 - Minor issues: Fix immediately in this iteration
-- Major issues: Log in cycle-log.md, handle in next iteration
-- Critical blockers: Pause and report to user
+- Major issues: Log in cycle-log.md, fix in next iteration
+- Critical blockers: Pause and ask user via AskUserQuestion
 
 ### Phase 4: Iteration Summary
 
-After review phase:
-1. Log to `cycle-log.md`:
+1. Log to `.autonomous-worker/cycle-log.md`:
    ```markdown
-   ## Iteration X/N
-   - Analyzed: [summary]
-   - Implemented: [changes made]
-   - Reviewed: [validation results]
-   - Issues Fixed: [count]
-   - Status: [continuing/complete]
+   ## Iteration X/N - {ISO date}
+   - Analyzed: {summary}
+   - Implemented: {changes made}
+   - Reviewed: {validation results}
+   - Issues Fixed: {count}
+   - Status: {continuing/complete}
    ```
 2. Mark resolved tickets (move to `resolved/`)
-3. If more iterations remain, continue to next iteration
-4. If final iteration, proceed to commit
+3. Update `state.json`: increment iteration
+4. If more iterations remain, continue to ANALYZE
+5. If final iteration, proceed to commit
 
-## Final Commit
+## Final Phase: Commit & Cleanup
 
-When all iterations complete:
+1. Stage changes: `git add -A`
+2. Review what's being committed: `git status` and `git diff --staged`
+3. Commit with descriptive message
+4. **If `--pr`**: Create PR via `gh pr create`
+5. **If `--worktree`**: Optionally merge via `wt merge`
+6. Update state: `phase: "complete"`
 
-1. Stage all changes: `git add -A`
-2. Generate commit message:
-   ```bash
-   git commit -m "feat: <task summary>
+## Completion Report
 
-   Changes:
-   - <change 1>
-   - <change 2>
-   - <change 3>
+```markdown
+## Cycle Complete
 
-   Tickets resolved: <list>
-   Iterations: N
+**Task:** {task_description}
+**Iterations:** {N}
+**Branch:** {branch}
 
-   🤖 Generated by autonomous-worker"
-   ```
-3. **DO NOT PUSH** - User will push when ready
-4. Report completion with summary
+### Changes Made:
+- {change 1}
+- {change 2}
 
-## State Management
+### Tickets Resolved:
+- {ticket 1}
+- {ticket 2}
 
-Maintain state in `.autonomous-worker/state.json`:
-```json
-{
-  "current_task": "task description",
-  "current_iteration": 1,
-  "total_iterations": 3,
-  "phase": "analyzing|implementing|reviewing|complete",
-  "worktree_path": "../aw-task-slug",
-  "branch": "feature/aw-task-slug",
-  "started_at": "ISO timestamp",
-  "tickets_resolved": []
-}
+### Review Summary:
+- Security: {status}
+- Quality: {status}
+- Performance: {status}
+- Tests: {status}
+
+### Next Steps:
+1. Review changes: `git diff main`
+2. If worktree: `wt merge` to merge back
+3. Push: `git push`
 ```
-
-## Review Validation (Not Ticket Generation)
-
-The review phase validates quality but does **NOT** generate tickets:
-
-### Security Reviewer Validates:
-- No new vulnerabilities introduced
-- Auth/authz properly implemented
-- Input validation present
-- No hardcoded secrets
-
-### Quality Reviewer Validates:
-- Code follows project conventions
-- No obvious code smells
-- Proper error handling
-- Clear naming
-
-### Test Reviewer Validates:
-- New code has tests
-- Existing tests still pass
-- Edge cases covered
-
-### Performance Reviewer Validates:
-- No N+1 queries introduced
-- Reasonable complexity
-- No obvious bottlenecks
-
-**If validation fails**: Fix in current/next iteration or report blocker.
 
 ## Important Rules
 
-- NEVER push to remote - only commit locally
-- ALL branches must originate from `staging`
-- Work on TRIAGED tickets only (from `tickets/`)
-- Review validates, does NOT generate new tickets
-- Be autonomous but log everything
-- Mark tickets as resolved when done
+- Be autonomous: skip confirmations unless critical blocker
+- Log everything in cycle-log.md
+- Use compound-engineering agents for deep analysis
+- Use worktrunk (`wt`) for worktree operations, not raw `git worktree`
+- NEVER push without explicit user request
 - Read CLAUDE.md context before starting
