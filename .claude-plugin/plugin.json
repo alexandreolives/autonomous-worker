@@ -33,6 +33,5 @@
     "./agents/reviewers/tests.md",
     "./agents/reviewers/performance.md"
   ],
-  "skills": "./skills/",
-  "hooks": "./hooks/hooks.json"
+  "skills": "./skills/"
 }
